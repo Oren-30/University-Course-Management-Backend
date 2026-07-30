@@ -1,5 +1,7 @@
+from datetime import date
+
 from app import app
-from extensions import db, bcrypt
+from extensions import db
 
 from models.user import User
 from models.student import Student
@@ -9,6 +11,7 @@ from models.enrollment import Enrollment
 
 
 with app.app_context():
+
     print("Dropping existing tables...")
     db.drop_all()
 
@@ -22,25 +25,25 @@ with app.app_context():
         first_name="Admin",
         last_name="User",
         email="admin@universitycms.com",
-        role="admin",
-        password=bcrypt.generate_password_hash("admin123").decode("utf-8")
+        role="admin"
     )
+    admin.set_password("admin123")
 
     lecturer = User(
         first_name="John",
         last_name="Kamau",
         email="john@universitycms.com",
-        role="instructor",
-        password=bcrypt.generate_password_hash("password123").decode("utf-8")
+        role="instructor"
     )
+    lecturer.set_password("password123")
 
     student_user = User(
         first_name="Jane",
         last_name="Achieng",
         email="jane@universitycms.com",
-        role="student",
-        password=bcrypt.generate_password_hash("password123").decode("utf-8")
+        role="student"
     )
+    student_user.set_password("password123")
 
     db.session.add_all([admin, lecturer, student_user])
     db.session.commit()
@@ -51,8 +54,10 @@ with app.app_context():
     instructor = Instructor(
         first_name="John",
         last_name="Kamau",
-        email="john@universitycms.com",
-        department="Computer Science"
+        email="john.lecturer@universitycms.com",
+        phone="+254700123456",
+        department="Computer Science",
+        office="Block A - Room 203"
     )
 
     db.session.add(instructor)
@@ -64,7 +69,7 @@ with app.app_context():
     student1 = Student(
         first_name="Jane",
         last_name="Achieng",
-        email="jane@universitycms.com",
+        email="jane.student@universitycms.com",
         student_number="ST001",
         department="Computer Science",
         program="BSc Computer Science",
@@ -74,7 +79,7 @@ with app.app_context():
     student2 = Student(
         first_name="Peter",
         last_name="Otieno",
-        email="peter@universitycms.com",
+        email="peter.student@universitycms.com",
         student_number="ST002",
         department="Information Technology",
         program="BSc Information Technology",
@@ -88,18 +93,22 @@ with app.app_context():
     # Courses
     # -------------------------
     course1 = Course(
-        code="CS101",
-        title="Introduction to Programming",
+        course_code="CS101",
+        course_name="Introduction to Programming",
         description="Learn Python programming.",
         credits=3,
+        department="Computer Science",
+        semester="Semester 1",
         instructor_id=instructor.id
     )
 
     course2 = Course(
-        code="CS201",
-        title="Database Systems",
-        description="Introduction to SQL and databases.",
+        course_code="CS201",
+        course_name="Database Systems",
+        description="Introduction to SQL and Database Design.",
         credits=3,
+        department="Computer Science",
+        semester="Semester 2",
         instructor_id=instructor.id
     )
 
@@ -111,20 +120,36 @@ with app.app_context():
     # -------------------------
     enrollment1 = Enrollment(
         student_id=student1.id,
-        course_id=course1.id
+        course_id=course1.id,
+        enrollment_date=date.today(),
+        status="Active",
+        grade=None
     )
 
     enrollment2 = Enrollment(
         student_id=student1.id,
-        course_id=course2.id
+        course_id=course2.id,
+        enrollment_date=date.today(),
+        status="Active",
+        grade=None
     )
 
     enrollment3 = Enrollment(
         student_id=student2.id,
-        course_id=course1.id
+        course_id=course1.id,
+        enrollment_date=date.today(),
+        status="Active",
+        grade=None
     )
 
     db.session.add_all([enrollment1, enrollment2, enrollment3])
     db.session.commit()
 
+    print("=" * 50)
     print("Database seeded successfully!")
+    print("=" * 50)
+    print("Users: 3")
+    print("Instructor: 1")
+    print("Students: 2")
+    print("Courses: 2")
+    print("Enrollments: 3")
