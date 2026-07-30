@@ -53,3 +53,15 @@ class Student(db.Model):
         lazy=True,
         cascade="all, delete-orphan"
     )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "first_name": self.first_name,
+            "last_name": self.last_name,
+            "email": self.email,
+            "student_number": self.student_number,
+            "department": self.department,
+            "program": self.program,
+            "year_of_study": self.year_of_study
+        }
