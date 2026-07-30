@@ -35,3 +35,26 @@ class Course(db.Model):
         db.String(100),
         nullable=False
     )
+
+    semester = db.Column(
+        db.String(20),
+        nullable=False
+    )
+
+    instructor_id = db.Column(
+        db.Integer,
+        db.ForeignKey("instructors.id"),
+        nullable=True
+    )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "course_code": self.course_code,
+            "course_name": self.course_name,
+            "description": self.description,
+            "credits": self.credits,
+            "department": self.department,
+            "semester": self.semester,
+            "instructor_id": self.instructor_id
+        }
