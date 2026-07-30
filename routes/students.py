@@ -1,4 +1,4 @@
-rom flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
 
 from extensions import db
@@ -67,3 +67,60 @@ def update_student(id):
     student = Student.query.get_or_404(id)
 
     data = request.get_json()
+
+    student.first_name = data.get(
+        "first_name",
+        student.first_name
+    )
+
+    student.last_name = data.get(
+        "last_name",
+        student.last_name
+    )
+
+    student.email = data.get(
+        "email",
+        student.email
+    )
+
+    student.student_number = data.get(
+        "student_number",
+        student.student_number
+    )
+
+    student.department = data.get(
+        "department",
+        student.department
+    )
+
+    student.program = data.get(
+        "program",
+        student.program
+    )
+
+    student.year_of_study = data.get(
+        "year_of_study",
+        student.year_of_study
+    )
+
+    db.session.commit()
+
+    return jsonify({
+        "message": "Student updated successfully",
+        "student": student.to_dict()
+    })
+
+
+# Delete student
+@students_bp.route("/<int:id>", methods=["DELETE"])
+@jwt_required()
+def delete_student(id):
+
+    student = Student.query.get_or_404(id)
+
+    db.session.delete(student)
+    db.session.commit()
+
+    return jsonify({
+        "message": "Student deleted successfully"
+    })
