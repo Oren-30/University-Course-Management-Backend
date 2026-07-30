@@ -64,3 +64,65 @@ def create_course():
         "course": course.to_dict()
     }), 201
 
+# Update a course
+@courses_bp.route("/<int:id>", methods=["PUT"])
+@jwt_required()
+def update_course(id):
+
+    course = Course.query.get_or_404(id)
+
+    data = request.get_json()
+
+    course.course_code = data.get(
+        "course_code",
+        course.course_code
+    )
+
+    course.course_name = data.get(
+        "course_name",
+        course.course_name
+    )
+
+    course.description = data.get(
+        "description",
+        course.description
+    )
+
+    course.credit_hours = data.get(
+        "credit_hours",
+        course.credit_hours
+    )
+
+    if "instructor_id" in data:
+        instructor = Instructor.query.get(
+            data["instructor_id"]
+        )
+
+        if instructor is None:
+            return jsonify({
+                "message": "Instructor not found"
+            }), 404
+
+        course.instructor_id = data["instructor_id"]
+
+    db.session.commit()
+
+    return jsonify({
+        "message": "Course updated successfully",
+        "course": course.to_dict()
+    })
+
+
+# Delete a course
+@courses_bp.route("/<int:id>", methods=["DELETE"])
+@jwt_required()
+def delete_course(id):
+
+    course = Course.query.get_or_404(id)
+
+    db.session.delete(course)
+    db.session.commit()
+
+    return jsonify({
+        "message": "Course deleted successfully"
+    })
