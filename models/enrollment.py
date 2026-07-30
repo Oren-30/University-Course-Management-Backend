@@ -5,10 +5,7 @@ class Enrollment(db.Model):
 
     __tablename__ = "enrollments"
 
-    id = db.Column(
-        db.Integer,
-        primary_key=True
-    )
+    id = db.Column(db.Integer, primary_key=True)
 
     student_id = db.Column(
         db.Integer,
@@ -35,11 +32,6 @@ class Enrollment(db.Model):
     grade = db.Column(
         db.String(5),
         nullable=True
-    )
-
-    student = db.relationship(
-        "Student",
-        backref=db.backref("enrollments", lazy=True)
     )
 
     course = db.relationship(
