@@ -21,7 +21,7 @@ def get_courses():
 
     return jsonify(
         [course.to_dict() for course in courses]
-    )
+    ), 200
 
 
 # Get one course
@@ -31,17 +31,46 @@ def get_course(id):
 
     course = Course.query.get_or_404(id)
 
-    return jsonify(course.to_dict())
+    return jsonify(course.to_dict()), 200
 
 
-# Create a course
+# Create course
 @courses_bp.route("/", methods=["POST"])
 @jwt_required()
 def create_course():
 
     data = request.get_json()
 
-    instructor = Instructor.query.get(data["instructor_id"])
+    if not data:
+        return jsonify({
+            "message": "No data provided"
+        }), 400
+
+    required = [
+        "course_code",
+        "course_name",
+        "credits",
+        "department",
+        "semester",
+        "instructor_id"
+    ]
+
+    for field in required:
+        if not data.get(field):
+            return jsonify({
+                "message": f"{field} is required"
+            }), 400
+
+    if Course.query.filter_by(
+        course_code=data["course_code"]
+    ).first():
+        return jsonify({
+            "message": "Course code already exists"
+        }), 409
+
+    instructor = Instructor.query.get(
+        data["instructor_id"]
+    )
 
     if instructor is None:
         return jsonify({
@@ -52,7 +81,9 @@ def create_course():
         course_code=data["course_code"],
         course_name=data["course_name"],
         description=data.get("description"),
-        credit_hours=data["credit_hours"],
+        credits=data["credits"],
+        department=data["department"],
+        semester=data["semester"],
         instructor_id=data["instructor_id"]
     )
 
@@ -64,7 +95,8 @@ def create_course():
         "course": course.to_dict()
     }), 201
 
-# Update a course
+
+# Update course
 @courses_bp.route("/<int:id>", methods=["PUT"])
 @jwt_required()
 def update_course(id):
@@ -72,6 +104,21 @@ def update_course(id):
     course = Course.query.get_or_404(id)
 
     data = request.get_json()
+
+    if not data:
+        return jsonify({
+            "message": "No data provided"
+        }), 400
+
+    if "course_code" in data:
+        existing = Course.query.filter_by(
+            course_code=data["course_code"]
+        ).first()
+
+        if existing and existing.id != course.id:
+            return jsonify({
+                "message": "Course code already exists"
+            }), 409
 
     course.course_code = data.get(
         "course_code",
@@ -88,12 +135,23 @@ def update_course(id):
         course.description
     )
 
-    course.credit_hours = data.get(
-        "credit_hours",
-        course.credit_hours
+    course.credits = data.get(
+        "credits",
+        course.credits
+    )
+
+    course.department = data.get(
+        "department",
+        course.department
+    )
+
+    course.semester = data.get(
+        "semester",
+        course.semester
     )
 
     if "instructor_id" in data:
+
         instructor = Instructor.query.get(
             data["instructor_id"]
         )
@@ -110,10 +168,10 @@ def update_course(id):
     return jsonify({
         "message": "Course updated successfully",
         "course": course.to_dict()
-    })
+    }), 200
 
 
-# Delete a course
+# Delete course
 @courses_bp.route("/<int:id>", methods=["DELETE"])
 @jwt_required()
 def delete_course(id):
@@ -125,4 +183,4 @@ def delete_course(id):
 
     return jsonify({
         "message": "Course deleted successfully"
-    })
+    }), 200
