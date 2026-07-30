@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
 
@@ -22,7 +24,7 @@ def get_enrollments():
 
     return jsonify(
         [enrollment.to_dict() for enrollment in enrollments]
-    )
+    ), 200
 
 
 # Get one enrollment
@@ -32,7 +34,7 @@ def get_enrollment(id):
 
     enrollment = Enrollment.query.get_or_404(id)
 
-    return jsonify(enrollment.to_dict())
+    return jsonify(enrollment.to_dict()), 200
 
 
 # Create enrollment
@@ -42,19 +44,56 @@ def create_enrollment():
 
     data = request.get_json()
 
+    if not data:
+        return jsonify({
+            "message": "No data provided"
+        }), 400
+
+    required = [
+        "student_id",
+        "course_id",
+        "enrollment_date"
+    ]
+
+    for field in required:
+        if not data.get(field):
+            return jsonify({
+                "message": f"{field} is required"
+            }), 400
+
     student = Student.query.get(data["student_id"])
-    course = Course.query.get(data["course_id"])
 
     if student is None:
-        return jsonify({"message": "Student not found"}), 404
+        return jsonify({
+            "message": "Student not found"
+        }), 404
+
+    course = Course.query.get(data["course_id"])
 
     if course is None:
-        return jsonify({"message": "Course not found"}), 404
+        return jsonify({
+            "message": "Course not found"
+        }), 404
+
+    existing = Enrollment.query.filter_by(
+        student_id=data["student_id"],
+        course_id=data["course_id"]
+    ).first()
+
+    if existing:
+        return jsonify({
+            "message": "Student is already enrolled in this course"
+        }), 409
+
+    enrollment_date = datetime.strptime(
+        data["enrollment_date"],
+        "%Y-%m-%d"
+    ).date()
 
     enrollment = Enrollment(
         student_id=data["student_id"],
         course_id=data["course_id"],
-        enrollment_date=data["enrollment_date"],
+        enrollment_date=enrollment_date,
         status=data.get("status", "Active"),
         grade=data.get("grade")
     )
@@ -77,26 +116,39 @@ def update_enrollment(id):
 
     data = request.get_json()
 
+    if not data:
+        return jsonify({
+            "message": "No data provided"
+        }), 400
+
     if "student_id" in data:
+
         student = Student.query.get(data["student_id"])
 
         if student is None:
-            return jsonify({"message": "Student not found"}), 404
+            return jsonify({
+                "message": "Student not found"
+            }), 404
 
         enrollment.student_id = data["student_id"]
 
     if "course_id" in data:
+
         course = Course.query.get(data["course_id"])
 
         if course is None:
-            return jsonify({"message": "Course not found"}), 404
+            return jsonify({
+                "message": "Course not found"
+            }), 404
 
         enrollment.course_id = data["course_id"]
 
-    enrollment.enrollment_date = data.get(
-        "enrollment_date",
-        enrollment.enrollment_date
-    )
+    if "enrollment_date" in data:
+
+        enrollment.enrollment_date = datetime.strptime(
+            data["enrollment_date"],
+            "%Y-%m-%d"
+        ).date()
 
     enrollment.status = data.get(
         "status",
@@ -113,7 +165,7 @@ def update_enrollment(id):
     return jsonify({
         "message": "Enrollment updated successfully",
         "enrollment": enrollment.to_dict()
-    })
+    }), 200
 
 
 # Delete enrollment
@@ -128,4 +180,4 @@ def delete_enrollment(id):
 
     return jsonify({
         "message": "Enrollment deleted successfully"
-    })
+    }), 200
