@@ -1,9 +1,14 @@
 from flask import Blueprint, request, jsonify
+
 from flask_jwt_extended import jwt_required
 
 from extensions import db
+
 from models.course import Course
 from models.instructor import Instructor
+
+from utils.roles import role_required
+
 
 courses_bp = Blueprint(
     "courses",
@@ -12,41 +17,57 @@ courses_bp = Blueprint(
 )
 
 
+# ==========================================
 # Get all courses
+# ==========================================
 @courses_bp.route("/", methods=["GET"])
 @jwt_required()
 def get_courses():
 
     courses = Course.query.all()
 
-    return jsonify(
-        [course.to_dict() for course in courses]
-    ), 200
+    return jsonify({
+        "success": True,
+        "count": len(courses),
+        "courses": [
+            course.to_dict() for course in courses
+        ]
+    }), 200
 
 
+# ==========================================
 # Get one course
+# ==========================================
 @courses_bp.route("/<int:id>", methods=["GET"])
 @jwt_required()
 def get_course(id):
 
-    course = Course.query.get_or_404(id)
+    course = Course.query.get(id)
 
-    return jsonify(course.to_dict()), 200
+    if course is None:
+
+        return jsonify({
+            "success": False,
+            "message": "Course not found."
+        }), 404
+
+    return jsonify({
+        "success": True,
+        "course": course.to_dict()
+    }), 200
 
 
+# ==========================================
 # Create course
+# Admin & Instructor
+# ==========================================
 @courses_bp.route("/", methods=["POST"])
-@jwt_required()
+@role_required("admin", "instructor")
 def create_course():
 
     data = request.get_json()
 
-    if not data:
-        return jsonify({
-            "message": "No data provided"
-        }), 400
-
-    required = [
+    required_fields = [
         "course_code",
         "course_name",
         "credits",
@@ -55,17 +76,23 @@ def create_course():
         "instructor_id"
     ]
 
-    for field in required:
-        if not data.get(field):
+    for field in required_fields:
+
+        if field not in data or data[field] == "":
             return jsonify({
-                "message": f"{field} is required"
+                "success": False,
+                "message": f"{field} is required."
             }), 400
 
-    if Course.query.filter_by(
+    existing_course = Course.query.filter_by(
         course_code=data["course_code"]
-    ).first():
+    ).first()
+
+    if existing_course:
+
         return jsonify({
-            "message": "Course code already exists"
+            "success": False,
+            "message": "Course code already exists."
         }), 409
 
     instructor = Instructor.query.get(
@@ -73,8 +100,10 @@ def create_course():
     )
 
     if instructor is None:
+
         return jsonify({
-            "message": "Instructor not found"
+            "success": False,
+            "message": "Instructor not found."
         }), 404
 
     course = Course(
@@ -91,39 +120,46 @@ def create_course():
     db.session.commit()
 
     return jsonify({
-        "message": "Course created successfully",
+        "success": True,
+        "message": "Course created successfully.",
         "course": course.to_dict()
     }), 201
 
 
+# ==========================================
 # Update course
+# Admin & Instructor
+# ==========================================
 @courses_bp.route("/<int:id>", methods=["PUT"])
-@jwt_required()
+@role_required("admin", "instructor")
 def update_course(id):
 
-    course = Course.query.get_or_404(id)
+    course = Course.query.get(id)
+
+    if course is None:
+
+        return jsonify({
+            "success": False,
+            "message": "Course not found."
+        }), 404
 
     data = request.get_json()
 
-    if not data:
-        return jsonify({
-            "message": "No data provided"
-        }), 400
-
     if "course_code" in data:
-        existing = Course.query.filter_by(
-            course_code=data["course_code"]
+
+        existing = Course.query.filter(
+            Course.course_code == data["course_code"],
+            Course.id != id
         ).first()
 
-        if existing and existing.id != course.id:
+        if existing:
+
             return jsonify({
-                "message": "Course code already exists"
+                "success": False,
+                "message": "Course code already exists."
             }), 409
 
-    course.course_code = data.get(
-        "course_code",
-        course.course_code
-    )
+        course.course_code = data["course_code"]
 
     course.course_name = data.get(
         "course_name",
@@ -157,8 +193,10 @@ def update_course(id):
         )
 
         if instructor is None:
+
             return jsonify({
-                "message": "Instructor not found"
+                "success": False,
+                "message": "Instructor not found."
             }), 404
 
         course.instructor_id = data["instructor_id"]
@@ -166,21 +204,58 @@ def update_course(id):
     db.session.commit()
 
     return jsonify({
-        "message": "Course updated successfully",
+        "success": True,
+        "message": "Course updated successfully.",
         "course": course.to_dict()
     }), 200
 
 
+# ==========================================
 # Delete course
+# Admin only
+# ==========================================
 @courses_bp.route("/<int:id>", methods=["DELETE"])
-@jwt_required()
+@role_required("admin")
 def delete_course(id):
 
-    course = Course.query.get_or_404(id)
+    course = Course.query.get(id)
+
+    if course is None:
+
+        return jsonify({
+            "success": False,
+            "message": "Course not found."
+        }), 404
 
     db.session.delete(course)
     db.session.commit()
 
     return jsonify({
-        "message": "Course deleted successfully"
+        "success": True,
+        "message": "Course deleted successfully."
+    }), 200
+
+
+# ==========================================
+# Search courses
+# ==========================================
+@courses_bp.route("/search", methods=["GET"])
+@jwt_required()
+def search_courses():
+
+    keyword = request.args.get("q", "")
+
+    courses = Course.query.filter(
+        Course.course_code.ilike(f"%{keyword}%") |
+        Course.course_name.ilike(f"%{keyword}%") |
+        Course.department.ilike(f"%{keyword}%") |
+        Course.semester.ilike(f"%{keyword}%")
+    ).all()
+
+    return jsonify({
+        "success": True,
+        "count": len(courses),
+        "courses": [
+            course.to_dict() for course in courses
+        ]
     }), 200
