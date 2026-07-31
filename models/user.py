@@ -1,6 +1,7 @@
 from extensions import db
 from werkzeug.security import generate_password_hash, check_password_hash
 
+
 class User(db.Model):
 
     __tablename__ = "users"
@@ -33,25 +34,23 @@ class User(db.Model):
 
     role = db.Column(
         db.String(50),
+        nullable=False,
         default="student"
     )
 
-
+    # -------------------------
+    # Password Methods
+    # -------------------------
     def set_password(self, password):
-
         self.password = generate_password_hash(password)
 
-
     def check_password(self, password):
+        return check_password_hash(self.password, password)
 
-        return check_password_hash(
-            self.password,
-            password
-        )
-
-
+    # -------------------------
+    # Convert to Dictionary
+    # -------------------------
     def to_dict(self):
-
         return {
             "id": self.id,
             "first_name": self.first_name,
@@ -59,3 +58,9 @@ class User(db.Model):
             "email": self.email,
             "role": self.role
         }
+
+    # -------------------------
+    # String Representation
+    # -------------------------
+    def __repr__(self):
+        return f"<User {self.email}>"

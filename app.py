@@ -14,9 +14,10 @@ from routes.enrollments import enrollments_bp
 def create_app():
     app = Flask(__name__)
 
+    # Load configuration
     app.config.from_object(Config)
 
-    # Enable CORS for the React frontend
+    # Enable CORS for React frontend
     CORS(app)
 
     # Initialize extensions
@@ -25,10 +26,26 @@ def create_app():
 
     # Register blueprints
     app.register_blueprint(auth_bp, url_prefix="/api")
-    app.register_blueprint(students_bp, url_prefix="/api")
-    app.register_blueprint(courses_bp, url_prefix="/api")
-    app.register_blueprint(instructors_bp, url_prefix="/api")
-    app.register_blueprint(enrollments_bp, url_prefix="/api")
+
+    app.register_blueprint(
+        students_bp,
+        url_prefix="/api/students"
+    )
+
+    app.register_blueprint(
+        courses_bp,
+        url_prefix="/api/courses"
+    )
+
+    app.register_blueprint(
+        instructors_bp,
+        url_prefix="/api/instructors"
+    )
+
+    app.register_blueprint(
+        enrollments_bp,
+        url_prefix="/api/enrollments"
+    )
 
     @app.route("/")
     def home():
@@ -36,6 +53,13 @@ def create_app():
             "message": "University Course Management API Running"
         }
 
+    @app.route("/health")
+    def health():
+        return {
+            "status": "ok"
+        }
+
+    # Create database tables
     with app.app_context():
         db.create_all()
 
@@ -44,5 +68,10 @@ def create_app():
 
 app = create_app()
 
+
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    app.run(
+        host="0.0.0.0",
+        port=5000,
+        debug=True
+    )

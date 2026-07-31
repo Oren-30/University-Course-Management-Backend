@@ -1,166 +1,79 @@
 from flask import Blueprint, request, jsonify
-
-from flask_jwt_extended import jwt_required
-
 from extensions import db
+from models import Instructor
 
-from models.instructor import Instructor
-
-from utils.roles import role_required
-
-
-instructors_bp = Blueprint(
-    "instructors",
-    __name__,
-    url_prefix="/instructors"
-)
+instructors_bp = Blueprint("instructors", __name__)
 
 
-# ==========================================
-# Get all instructors
-# ==========================================
-@instructors_bp.route("/", methods=["GET"])
-@jwt_required()
+# GET all instructors
+@instructors_bp.route("", methods=["GET"])
 def get_instructors():
-
     instructors = Instructor.query.all()
 
-    return jsonify({
-        "success": True,
-        "count": len(instructors),
-        "instructors": [
-            instructor.to_dict()
-            for instructor in instructors
-        ]
-    }), 200
+    return jsonify([
+        {
+            "id": instructor.id,
+            "name": instructor.name,
+            "email": instructor.email,
+            "department": instructor.department
+        }
+        for instructor in instructors
+    ]), 200
 
 
-# ==========================================
-# Get one instructor
-# ==========================================
+# GET one instructor
 @instructors_bp.route("/<int:id>", methods=["GET"])
-@jwt_required()
 def get_instructor(id):
-
-    instructor = Instructor.query.get(id)
-
-    if instructor is None:
-
-        return jsonify({
-            "success": False,
-            "message": "Instructor not found."
-        }), 404
+    instructor = Instructor.query.get_or_404(id)
 
     return jsonify({
-        "success": True,
-        "instructor": instructor.to_dict()
+        "id": instructor.id,
+        "name": instructor.name,
+        "email": instructor.email,
+        "department": instructor.department
     }), 200
 
 
-# ==========================================
-# Create instructor
-# Admin only
-# ==========================================
-@instructors_bp.route("/", methods=["POST"])
-@role_required("admin")
+# CREATE instructor
+@instructors_bp.route("", methods=["POST"])
 def create_instructor():
-
     data = request.get_json()
 
-    required_fields = [
-        "first_name",
-        "last_name",
-        "email",
-        "department"
-    ]
-
-    for field in required_fields:
-
-        if field not in data or data[field] == "":
-
-            return jsonify({
-                "success": False,
-                "message": f"{field} is required."
-            }), 400
-
-    existing = Instructor.query.filter_by(
-        email=data["email"]
-    ).first()
-
-    if existing:
-
-        return jsonify({
-            "success": False,
-            "message": "Instructor already exists."
-        }), 409
-
     instructor = Instructor(
-        first_name=data["first_name"],
-        last_name=data["last_name"],
+        name=data["name"],
         email=data["email"],
-        phone=data.get("phone"),
-        department=data["department"],
-        office=data.get("office")
+        department=data.get("department")
     )
 
     db.session.add(instructor)
     db.session.commit()
 
     return jsonify({
-        "success": True,
-        "message": "Instructor created successfully.",
-        "instructor": instructor.to_dict()
+        "message": "Instructor created successfully",
+        "instructor": {
+            "id": instructor.id,
+            "name": instructor.name,
+            "email": instructor.email,
+            "department": instructor.department
+        }
     }), 201
 
 
-# ==========================================
-# Update instructor
-# Admin only
-# ==========================================
+# UPDATE instructor
 @instructors_bp.route("/<int:id>", methods=["PUT"])
-@role_required("admin")
 def update_instructor(id):
-
-    instructor = Instructor.query.get(id)
-
-    if instructor is None:
-
-        return jsonify({
-            "success": False,
-            "message": "Instructor not found."
-        }), 404
+    instructor = Instructor.query.get_or_404(id)
 
     data = request.get_json()
 
-    if "email" in data:
-
-        existing = Instructor.query.filter(
-            Instructor.email == data["email"],
-            Instructor.id != id
-        ).first()
-
-        if existing:
-
-            return jsonify({
-                "success": False,
-                "message": "Email already exists."
-            }), 409
-
-        instructor.email = data["email"]
-
-    instructor.first_name = data.get(
-        "first_name",
-        instructor.first_name
+    instructor.name = data.get(
+        "name",
+        instructor.name
     )
 
-    instructor.last_name = data.get(
-        "last_name",
-        instructor.last_name
-    )
-
-    instructor.phone = data.get(
-        "phone",
-        instructor.phone
+    instructor.email = data.get(
+        "email",
+        instructor.email
     )
 
     instructor.department = data.get(
@@ -168,67 +81,41 @@ def update_instructor(id):
         instructor.department
     )
 
-    instructor.office = data.get(
-        "office",
-        instructor.office
-    )
-
     db.session.commit()
 
     return jsonify({
-        "success": True,
-        "message": "Instructor updated successfully.",
-        "instructor": instructor.to_dict()
+        "message": "Instructor updated successfully"
     }), 200
 
 
-# ==========================================
-# Delete instructor
-# Admin only
-# ==========================================
+# DELETE instructor
 @instructors_bp.route("/<int:id>", methods=["DELETE"])
-@role_required("admin")
 def delete_instructor(id):
-
-    instructor = Instructor.query.get(id)
-
-    if instructor is None:
-
-        return jsonify({
-            "success": False,
-            "message": "Instructor not found."
-        }), 404
+    instructor = Instructor.query.get_or_404(id)
 
     db.session.delete(instructor)
     db.session.commit()
 
     return jsonify({
-        "success": True,
-        "message": "Instructor deleted successfully."
+        "message": "Instructor deleted successfully"
     }), 200
 
 
-# ==========================================
-# Search instructors
-# ==========================================
+# SEARCH instructors
 @instructors_bp.route("/search", methods=["GET"])
-@jwt_required()
 def search_instructors():
-
-    keyword = request.args.get("q", "")
+    query = request.args.get("q", "")
 
     instructors = Instructor.query.filter(
-        Instructor.first_name.ilike(f"%{keyword}%") |
-        Instructor.last_name.ilike(f"%{keyword}%") |
-        Instructor.email.ilike(f"%{keyword}%") |
-        Instructor.department.ilike(f"%{keyword}%")
+        Instructor.name.ilike(f"%{query}%")
     ).all()
 
-    return jsonify({
-        "success": True,
-        "count": len(instructors),
-        "instructors": [
-            instructor.to_dict()
-            for instructor in instructors
-        ]
-    }), 200
+    return jsonify([
+        {
+            "id": instructor.id,
+            "name": instructor.name,
+            "email": instructor.email,
+            "department": instructor.department
+        }
+        for instructor in instructors
+    ]), 200

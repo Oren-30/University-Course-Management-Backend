@@ -4,3 +4,5 @@ Flask-JWT-Extended
 Flask-Cors
 Werkzeug
 python-dotenv
+gunicorn
+psycopg2-binary

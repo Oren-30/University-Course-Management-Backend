@@ -1,135 +1,63 @@
 from flask import Blueprint, request, jsonify
-
-from flask_jwt_extended import jwt_required
-
 from extensions import db
-
 from models.student import Student
 
-from utils.roles import role_required
+students_bp = Blueprint("students", __name__)
 
 
-students_bp = Blueprint(
-    "students",
-    __name__,
-    url_prefix="/students"
-)
+def student_response(student):
+    return {
+        "id": student.id,
+        "name": f"{student.first_name} {student.last_name}",
+        "email": student.email
+    }
 
 
-# ==========================================
-# Get all students
-# ==========================================
-@students_bp.route("/", methods=["GET"])
-@jwt_required()
+# GET all students
+@students_bp.route("", methods=["GET"])
 def get_students():
-
     students = Student.query.all()
 
-    return jsonify({
-        "success": True,
-        "count": len(students),
-        "students": [
-            student.to_dict() for student in students
-        ]
-    }), 200
+    return jsonify([
+        student_response(student)
+        for student in students
+    ]), 200
 
 
-# ==========================================
-# Get one student
-# ==========================================
+# GET one student
 @students_bp.route("/<int:id>", methods=["GET"])
-@jwt_required()
 def get_student(id):
+    student = Student.query.get_or_404(id)
 
-    student = Student.query.get(id)
-
-    if student is None:
-
-        return jsonify({
-            "success": False,
-            "message": "Student not found."
-        }), 404
-
-    return jsonify({
-        "success": True,
-        "student": student.to_dict()
-    }), 200
+    return jsonify(
+        student_response(student)
+    ), 200
 
 
-# ==========================================
-# Create student (Admin only)
-# ==========================================
-@students_bp.route("/", methods=["POST"])
-@role_required("admin")
+# CREATE student
+@students_bp.route("", methods=["POST"])
 def create_student():
-
     data = request.get_json()
-
-    required_fields = [
-        "first_name",
-        "last_name",
-        "email",
-        "student_number",
-        "department",
-        "program",
-        "year_of_study"
-    ]
-
-    for field in required_fields:
-
-        if field not in data or data[field] == "":
-            return jsonify({
-                "success": False,
-                "message": f"{field} is required."
-            }), 400
-
-    existing_student = Student.query.filter(
-        (Student.email == data["email"]) |
-        (Student.student_number == data["student_number"])
-    ).first()
-
-    if existing_student:
-
-        return jsonify({
-            "success": False,
-            "message": "Student already exists."
-        }), 409
 
     student = Student(
         first_name=data["first_name"],
         last_name=data["last_name"],
-        email=data["email"],
-        student_number=data["student_number"],
-        department=data["department"],
-        program=data["program"],
-        year_of_study=data["year_of_study"]
+        email=data["email"]
     )
 
     db.session.add(student)
     db.session.commit()
 
     return jsonify({
-        "success": True,
-        "message": "Student created successfully.",
-        "student": student.to_dict()
+        "message": "Student created successfully",
+        "student": student_response(student)
     }), 201
 
 
-# ==========================================
-# Update student (Admin only)
-# ==========================================
+# UPDATE student
 @students_bp.route("/<int:id>", methods=["PUT"])
-@role_required("admin")
 def update_student(id):
-
-    student = Student.query.get(id)
-
-    if student is None:
-
-        return jsonify({
-            "success": False,
-            "message": "Student not found."
-        }), 404
+    student = Student.query.get_or_404(id)
 
     data = request.get_json()
 
@@ -148,80 +76,37 @@ def update_student(id):
         student.email
     )
 
-    student.student_number = data.get(
-        "student_number",
-        student.student_number
-    )
-
-    student.department = data.get(
-        "department",
-        student.department
-    )
-
-    student.program = data.get(
-        "program",
-        student.program
-    )
-
-    student.year_of_study = data.get(
-        "year_of_study",
-        student.year_of_study
-    )
-
     db.session.commit()
 
     return jsonify({
-        "success": True,
-        "message": "Student updated successfully.",
-        "student": student.to_dict()
+        "message": "Student updated successfully"
     }), 200
 
 
-# ==========================================
-# Delete student (Admin only)
-# ==========================================
+# DELETE student
 @students_bp.route("/<int:id>", methods=["DELETE"])
-@role_required("admin")
 def delete_student(id):
-
-    student = Student.query.get(id)
-
-    if student is None:
-
-        return jsonify({
-            "success": False,
-            "message": "Student not found."
-        }), 404
+    student = Student.query.get_or_404(id)
 
     db.session.delete(student)
     db.session.commit()
 
     return jsonify({
-        "success": True,
-        "message": "Student deleted successfully."
+        "message": "Student deleted successfully"
     }), 200
 
 
-# ==========================================
-# Search students
-# ==========================================
+# SEARCH students
 @students_bp.route("/search", methods=["GET"])
-@jwt_required()
 def search_students():
-
-    keyword = request.args.get("q", "")
+    query = request.args.get("q", "")
 
     students = Student.query.filter(
-        Student.first_name.ilike(f"%{keyword}%") |
-        Student.last_name.ilike(f"%{keyword}%") |
-        Student.student_number.ilike(f"%{keyword}%") |
-        Student.email.ilike(f"%{keyword}%")
+        Student.first_name.ilike(f"%{query}%") |
+        Student.last_name.ilike(f"%{query}%")
     ).all()
 
-    return jsonify({
-        "success": True,
-        "count": len(students),
-        "students": [
-            student.to_dict() for student in students
-        ]
-    }), 200
+    return jsonify([
+        student_response(student)
+        for student in students
+    ]), 200
