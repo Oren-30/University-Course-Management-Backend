@@ -1,8 +1,13 @@
 from flask import Blueprint, request, jsonify
+
 from flask_jwt_extended import jwt_required
 
 from extensions import db
+
 from models.instructor import Instructor
+
+from utils.roles import role_required
+
 
 instructors_bp = Blueprint(
     "instructors",
@@ -11,56 +16,82 @@ instructors_bp = Blueprint(
 )
 
 
+# ==========================================
 # Get all instructors
+# ==========================================
 @instructors_bp.route("/", methods=["GET"])
 @jwt_required()
 def get_instructors():
 
     instructors = Instructor.query.all()
 
-    return jsonify(
-        [instructor.to_dict() for instructor in instructors]
-    ), 200
+    return jsonify({
+        "success": True,
+        "count": len(instructors),
+        "instructors": [
+            instructor.to_dict()
+            for instructor in instructors
+        ]
+    }), 200
 
 
+# ==========================================
 # Get one instructor
+# ==========================================
 @instructors_bp.route("/<int:id>", methods=["GET"])
 @jwt_required()
 def get_instructor(id):
 
-    instructor = Instructor.query.get_or_404(id)
+    instructor = Instructor.query.get(id)
 
-    return jsonify(instructor.to_dict()), 200
+    if instructor is None:
+
+        return jsonify({
+            "success": False,
+            "message": "Instructor not found."
+        }), 404
+
+    return jsonify({
+        "success": True,
+        "instructor": instructor.to_dict()
+    }), 200
 
 
+# ==========================================
 # Create instructor
+# Admin only
+# ==========================================
 @instructors_bp.route("/", methods=["POST"])
-@jwt_required()
+@role_required("admin")
 def create_instructor():
 
     data = request.get_json()
 
-    if not data:
-        return jsonify({
-            "message": "No data provided"
-        }), 400
-
-    required = [
+    required_fields = [
         "first_name",
         "last_name",
         "email",
         "department"
     ]
 
-    for field in required:
-        if not data.get(field):
+    for field in required_fields:
+
+        if field not in data or data[field] == "":
+
             return jsonify({
-                "message": f"{field} is required"
+                "success": False,
+                "message": f"{field} is required."
             }), 400
 
-    if Instructor.query.filter_by(email=data["email"]).first():
+    existing = Instructor.query.filter_by(
+        email=data["email"]
+    ).first()
+
+    if existing:
+
         return jsonify({
-            "message": "Email already exists"
+            "success": False,
+            "message": "Instructor already exists."
         }), 409
 
     instructor = Instructor(
@@ -76,34 +107,46 @@ def create_instructor():
     db.session.commit()
 
     return jsonify({
-        "message": "Instructor created successfully",
+        "success": True,
+        "message": "Instructor created successfully.",
         "instructor": instructor.to_dict()
     }), 201
 
 
+# ==========================================
 # Update instructor
+# Admin only
+# ==========================================
 @instructors_bp.route("/<int:id>", methods=["PUT"])
-@jwt_required()
+@role_required("admin")
 def update_instructor(id):
 
-    instructor = Instructor.query.get_or_404(id)
+    instructor = Instructor.query.get(id)
+
+    if instructor is None:
+
+        return jsonify({
+            "success": False,
+            "message": "Instructor not found."
+        }), 404
 
     data = request.get_json()
 
-    if not data:
-        return jsonify({
-            "message": "No data provided"
-        }), 400
-
     if "email" in data:
-        existing = Instructor.query.filter_by(
-            email=data["email"]
+
+        existing = Instructor.query.filter(
+            Instructor.email == data["email"],
+            Instructor.id != id
         ).first()
 
-        if existing and existing.id != instructor.id:
+        if existing:
+
             return jsonify({
-                "message": "Email already exists"
+                "success": False,
+                "message": "Email already exists."
             }), 409
+
+        instructor.email = data["email"]
 
     instructor.first_name = data.get(
         "first_name",
@@ -113,11 +156,6 @@ def update_instructor(id):
     instructor.last_name = data.get(
         "last_name",
         instructor.last_name
-    )
-
-    instructor.email = data.get(
-        "email",
-        instructor.email
     )
 
     instructor.phone = data.get(
@@ -138,21 +176,59 @@ def update_instructor(id):
     db.session.commit()
 
     return jsonify({
-        "message": "Instructor updated successfully",
+        "success": True,
+        "message": "Instructor updated successfully.",
         "instructor": instructor.to_dict()
     }), 200
 
 
+# ==========================================
 # Delete instructor
+# Admin only
+# ==========================================
 @instructors_bp.route("/<int:id>", methods=["DELETE"])
-@jwt_required()
+@role_required("admin")
 def delete_instructor(id):
 
-    instructor = Instructor.query.get_or_404(id)
+    instructor = Instructor.query.get(id)
+
+    if instructor is None:
+
+        return jsonify({
+            "success": False,
+            "message": "Instructor not found."
+        }), 404
 
     db.session.delete(instructor)
     db.session.commit()
 
     return jsonify({
-        "message": "Instructor deleted successfully"
+        "success": True,
+        "message": "Instructor deleted successfully."
+    }), 200
+
+
+# ==========================================
+# Search instructors
+# ==========================================
+@instructors_bp.route("/search", methods=["GET"])
+@jwt_required()
+def search_instructors():
+
+    keyword = request.args.get("q", "")
+
+    instructors = Instructor.query.filter(
+        Instructor.first_name.ilike(f"%{keyword}%") |
+        Instructor.last_name.ilike(f"%{keyword}%") |
+        Instructor.email.ilike(f"%{keyword}%") |
+        Instructor.department.ilike(f"%{keyword}%")
+    ).all()
+
+    return jsonify({
+        "success": True,
+        "count": len(instructors),
+        "instructors": [
+            instructor.to_dict()
+            for instructor in instructors
+        ]
     }), 200
