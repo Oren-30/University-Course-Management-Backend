@@ -1,65 +1,136 @@
+from flask import Blueprint, request, jsonify
 from extensions import db
+from models.student import Student
+
+students_bp = Blueprint("students", __name__)
 
 
-class Student(db.Model):
-    __tablename__ = "students"
+# ==========================================
+# GET ALL STUDENTS
+# ==========================================
+@students_bp.route("", methods=["GET"])
+def get_students():
 
-    id = db.Column(
-        db.Integer,
-        primary_key=True
+    students = Student.query.all()
+
+    return jsonify({
+        "students": [
+            student.to_dict()
+            for student in students
+        ]
+    }), 200
+
+
+# ==========================================
+# GET ONE STUDENT
+# ==========================================
+@students_bp.route("/<int:id>", methods=["GET"])
+def get_student(id):
+
+    student = Student.query.get_or_404(id)
+
+    return jsonify({
+        "student": student.to_dict()
+    }), 200
+
+
+# ==========================================
+# CREATE STUDENT
+# ==========================================
+@students_bp.route("", methods=["POST"])
+def create_student():
+
+    data = request.get_json()
+
+    student = Student(
+        user_id=data["user_id"],
+        student_number=data["student_number"],
+        department=data["department"],
+        program=data["program"],
+        year_of_study=data["year_of_study"]
     )
 
-    user_id = db.Column(
-        db.Integer,
-        db.ForeignKey("users.id"),
-        nullable=False,
-        unique=True
+    db.session.add(student)
+    db.session.commit()
+
+    return jsonify({
+        "message": "Student created successfully",
+        "student": student.to_dict()
+    }), 201
+
+
+# ==========================================
+# UPDATE STUDENT
+# ==========================================
+@students_bp.route("/<int:id>", methods=["PUT"])
+def update_student(id):
+
+    student = Student.query.get_or_404(id)
+
+    data = request.get_json()
+
+    student.student_number = data.get(
+        "student_number",
+        student.student_number
     )
 
-    student_number = db.Column(
-        db.String(50),
-        unique=True,
-        nullable=False
+    student.department = data.get(
+        "department",
+        student.department
     )
 
-    department = db.Column(
-        db.String(100),
-        nullable=False
+    student.program = data.get(
+        "program",
+        student.program
     )
 
-    program = db.Column(
-        db.String(100),
-        nullable=False
+    student.year_of_study = data.get(
+        "year_of_study",
+        student.year_of_study
     )
 
-    year_of_study = db.Column(
-        db.Integer,
-        nullable=False
-    )
+    db.session.commit()
 
-    user = db.relationship(
-        "User",
-        back_populates="student"
-    )
+    return jsonify({
+        "message": "Student updated successfully",
+        "student": student.to_dict()
+    }), 200
 
-    enrollments = db.relationship(
-        "Enrollment",
-        back_populates="student",
-        cascade="all, delete-orphan"
-    )
 
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "student_number": self.student_number,
-            "department": self.department,
-            "program": self.program,
-            "year_of_study": self.year_of_study,
-            "user": {
-                "id": self.user.id,
-                "first_name": self.user.first_name,
-                "last_name": self.user.last_name,
-                "email": self.user.email,
-                "role": self.user.role
-            } if self.user else None
-        }
+# ==========================================
+# DELETE STUDENT
+# ==========================================
+@students_bp.route("/<int:id>", methods=["DELETE"])
+def delete_student(id):
+
+    student = Student.query.get_or_404(id)
+
+    db.session.delete(student)
+    db.session.commit()
+
+    return jsonify({
+        "message": "Student deleted successfully"
+    }), 200
+
+
+# ==========================================
+# SEARCH STUDENTS
+# ==========================================
+@students_bp.route("/search", methods=["GET"])
+def search_students():
+
+    query = request.args.get("q", "")
+
+    students = Student.query.join(Student.user).filter(
+        db.or_(
+            Student.student_number.ilike(f"%{query}%"),
+            Student.department.ilike(f"%{query}%")
+        )
+    ).all()
+
+    return jsonify({
+        "students": [
+            student.to_dict()
+            for student in students
+        ]
+    }), 200

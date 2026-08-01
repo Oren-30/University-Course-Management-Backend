@@ -1,74 +1,29 @@
-from extensions import db
+from flask import Blueprint, jsonify
+from models.instructor import Instructor
+
+instructors_bp = Blueprint("instructors", __name__)
 
 
-class Instructor(db.Model):
-    __tablename__ = "instructors"
+# GET all instructors
+@instructors_bp.route("", methods=["GET"])
+def get_instructors():
 
-    id = db.Column(
-        db.Integer,
-        primary_key=True
-    )
+    instructors = Instructor.query.all()
 
-    user_id = db.Column(
-        db.Integer,
-        db.ForeignKey("users.id"),
-        nullable=False,
-        unique=True
-    )
+    return jsonify({
+        "instructors": [
+            instructor.to_dict()
+            for instructor in instructors
+        ]
+    }), 200
 
-    staff_number = db.Column(
-        db.String(50),
-        unique=True,
-        nullable=False
-    )
 
-    department = db.Column(
-        db.String(100),
-        nullable=False
-    )
+# GET one instructor
+@instructors_bp.route("/<int:id>", methods=["GET"])
+def get_instructor(id):
 
-    specialization = db.Column(
-        db.String(100),
-        nullable=False
-    )
+    instructor = Instructor.query.get_or_404(id)
 
-    office = db.Column(
-        db.String(100)
-    )
-
-    phone = db.Column(
-        db.String(20)
-    )
-
-    # Relationship with User
-    user = db.relationship(
-        "User",
-        back_populates="instructor"
-    )
-
-    # Relationship with Course
-    courses = db.relationship(
-        "Course",
-        back_populates="instructor",
-        cascade="all, delete-orphan"
-    )
-
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "staff_number": self.staff_number,
-            "department": self.department,
-            "specialization": self.specialization,
-            "office": self.office,
-            "phone": self.phone,
-            "user": {
-                "id": self.user.id,
-                "first_name": self.user.first_name,
-                "last_name": self.user.last_name,
-                "email": self.user.email,
-                "role": self.user.role
-            } if self.user else None
-        }
-
-    def __repr__(self):
-        return f"<Instructor {self.staff_number}>"
+    return jsonify({
+        "instructor": instructor.to_dict()
+    }), 200
