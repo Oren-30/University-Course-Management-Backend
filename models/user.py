@@ -1,9 +1,7 @@
 from extensions import db
-from werkzeug.security import generate_password_hash, check_password_hash
 
 
 class User(db.Model):
-
     __tablename__ = "users"
 
     id = db.Column(
@@ -33,34 +31,41 @@ class User(db.Model):
     )
 
     role = db.Column(
-        db.String(50),
+        db.String(20),
         nullable=False,
         default="student"
     )
 
-    # -------------------------
-    # Password Methods
-    # -------------------------
-    def set_password(self, password):
-        self.password = generate_password_hash(password)
+    created_at = db.Column(
+        db.DateTime,
+        server_default=db.func.now()
+    )
 
-    def check_password(self, password):
-        return check_password_hash(self.password, password)
+    # Relationships
+    student = db.relationship(
+        "Student",
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan"
+    )
 
-    # -------------------------
-    # Convert to Dictionary
-    # -------------------------
+    instructor = db.relationship(
+        "Instructor",
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan"
+    )
+
     def to_dict(self):
         return {
             "id": self.id,
             "first_name": self.first_name,
             "last_name": self.last_name,
             "email": self.email,
-            "role": self.role
+            "role": self.role,
+            "created_at": self.created_at.isoformat()
+            if self.created_at else None
         }
 
-    # -------------------------
-    # String Representation
-    # -------------------------
     def __repr__(self):
         return f"<User {self.email}>"

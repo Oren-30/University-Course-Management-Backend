@@ -2,10 +2,12 @@ from extensions import db
 
 
 class Enrollment(db.Model):
-
     __tablename__ = "enrollments"
 
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(
+        db.Integer,
+        primary_key=True
+    )
 
     student_id = db.Column(
         db.Integer,
@@ -19,24 +21,41 @@ class Enrollment(db.Model):
         nullable=False
     )
 
-    enrollment_date = db.Column(
-        db.Date,
+    semester = db.Column(
+        db.String(20),
         nullable=False
     )
 
-    status = db.Column(
-        db.String(50),
-        default="Active"
+    academic_year = db.Column(
+        db.String(20),
+        nullable=False
+    )
+
+    enrollment_date = db.Column(
+        db.Date,
+        nullable=False,
+        server_default=db.func.current_date()
     )
 
     grade = db.Column(
-        db.String(5),
-        nullable=True
+        db.String(2)
+    )
+
+    status = db.Column(
+        db.String(20),
+        nullable=False,
+        default="Active"
+    )
+
+    # Relationships
+    student = db.relationship(
+        "Student",
+        back_populates="enrollments"
     )
 
     course = db.relationship(
         "Course",
-        backref=db.backref("enrollments", lazy=True)
+        back_populates="enrollments"
     )
 
     def to_dict(self):
@@ -44,7 +63,18 @@ class Enrollment(db.Model):
             "id": self.id,
             "student_id": self.student_id,
             "course_id": self.course_id,
-            "enrollment_date": self.enrollment_date.isoformat() if self.enrollment_date else None,
-            "status": self.status,
-            "grade": self.grade
+            "semester": self.semester,
+            "academic_year": self.academic_year,
+            "enrollment_date": (
+                self.enrollment_date.isoformat()
+                if self.enrollment_date else None
+            ),
+            "grade": self.grade,
+            "status": self.status
         }
+
+    def __repr__(self):
+        return (
+            f"<Enrollment Student:{self.student_id} "
+            f"Course:{self.course_id}>"
+        )

@@ -2,7 +2,6 @@ from extensions import db
 
 
 class Student(db.Model):
-
     __tablename__ = "students"
 
     id = db.Column(
@@ -10,20 +9,11 @@ class Student(db.Model):
         primary_key=True
     )
 
-    first_name = db.Column(
-        db.String(100),
-        nullable=False
-    )
-
-    last_name = db.Column(
-        db.String(100),
-        nullable=False
-    )
-
-    email = db.Column(
-        db.String(120),
-        unique=True,
-        nullable=False
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id"),
+        nullable=False,
+        unique=True
     )
 
     student_number = db.Column(
@@ -47,21 +37,29 @@ class Student(db.Model):
         nullable=False
     )
 
+    user = db.relationship(
+        "User",
+        back_populates="student"
+    )
+
     enrollments = db.relationship(
         "Enrollment",
-        backref="student",
-        lazy=True,
+        back_populates="student",
         cascade="all, delete-orphan"
     )
 
     def to_dict(self):
         return {
             "id": self.id,
-            "first_name": self.first_name,
-            "last_name": self.last_name,
-            "email": self.email,
             "student_number": self.student_number,
             "department": self.department,
             "program": self.program,
-            "year_of_study": self.year_of_study
+            "year_of_study": self.year_of_study,
+            "user": {
+                "id": self.user.id,
+                "first_name": self.user.first_name,
+                "last_name": self.user.last_name,
+                "email": self.user.email,
+                "role": self.user.role
+            } if self.user else None
         }
