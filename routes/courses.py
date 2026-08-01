@@ -1,48 +1,51 @@
 from flask import Blueprint, request, jsonify
 from extensions import db
-from models import Course
+from models.course import Course
 
 courses_bp = Blueprint("courses", __name__)
 
 
-# GET all courses
+# ==========================================
+# GET ALL COURSES
+# ==========================================
 @courses_bp.route("", methods=["GET"])
 def get_courses():
+
     courses = Course.query.all()
 
-    return jsonify([
-        {
-            "id": course.id,
-            "name": course.name,
-            "code": course.code,
-            "description": course.description
-        }
-        for course in courses
-    ]), 200
-
-
-# GET one course
-@courses_bp.route("/<int:id>", methods=["GET"])
-def get_course(id):
-    course = Course.query.get_or_404(id)
-
     return jsonify({
-        "id": course.id,
-        "name": course.name,
-        "code": course.code,
-        "description": course.description
+        "courses": [
+            course.to_dict()
+            for course in courses
+        ]
     }), 200
 
 
-# CREATE course
+# ==========================================
+# GET ONE COURSE
+# ==========================================
+@courses_bp.route("/<int:id>", methods=["GET"])
+def get_course(id):
+
+    course = Course.query.get_or_404(id)
+
+    return jsonify({
+        "course": course.to_dict()
+    }), 200
+
+
+# ==========================================
+# CREATE COURSE
+# ==========================================
 @courses_bp.route("", methods=["POST"])
 def create_course():
+
     data = request.get_json()
 
     course = Course(
         name=data["name"],
         code=data["code"],
-        description=data.get("description")
+        description=data.get("description"),
     )
 
     db.session.add(course)
@@ -50,18 +53,16 @@ def create_course():
 
     return jsonify({
         "message": "Course created successfully",
-        "course": {
-            "id": course.id,
-            "name": course.name,
-            "code": course.code,
-            "description": course.description
-        }
+        "course": course.to_dict()
     }), 201
 
 
-# UPDATE course
+# ==========================================
+# UPDATE COURSE
+# ==========================================
 @courses_bp.route("/<int:id>", methods=["PUT"])
 def update_course(id):
+
     course = Course.query.get_or_404(id)
 
     data = request.get_json()
@@ -76,13 +77,17 @@ def update_course(id):
     db.session.commit()
 
     return jsonify({
-        "message": "Course updated successfully"
+        "message": "Course updated successfully",
+        "course": course.to_dict()
     }), 200
 
 
-# DELETE course
+# ==========================================
+# DELETE COURSE
+# ==========================================
 @courses_bp.route("/<int:id>", methods=["DELETE"])
 def delete_course(id):
+
     course = Course.query.get_or_404(id)
 
     db.session.delete(course)
@@ -93,21 +98,21 @@ def delete_course(id):
     }), 200
 
 
-# SEARCH courses
+# ==========================================
+# SEARCH COURSES
+# ==========================================
 @courses_bp.route("/search", methods=["GET"])
 def search_courses():
+
     query = request.args.get("q", "")
 
     courses = Course.query.filter(
         Course.name.ilike(f"%{query}%")
     ).all()
 
-    return jsonify([
-        {
-            "id": course.id,
-            "name": course.name,
-            "code": course.code,
-            "description": course.description
-        }
-        for course in courses
-    ]), 200
+    return jsonify({
+        "courses": [
+            course.to_dict()
+            for course in courses
+        ]
+    }), 200

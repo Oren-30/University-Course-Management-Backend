@@ -1,48 +1,53 @@
 from flask import Blueprint, request, jsonify
 from extensions import db
-from models import Instructor
+from models.instructor import Instructor
 
 instructors_bp = Blueprint("instructors", __name__)
 
 
-# GET all instructors
+# ==========================================
+# GET ALL INSTRUCTORS
+# ==========================================
 @instructors_bp.route("", methods=["GET"])
 def get_instructors():
+
     instructors = Instructor.query.all()
 
-    return jsonify([
-        {
-            "id": instructor.id,
-            "name": instructor.name,
-            "email": instructor.email,
-            "department": instructor.department
-        }
-        for instructor in instructors
-    ]), 200
-
-
-# GET one instructor
-@instructors_bp.route("/<int:id>", methods=["GET"])
-def get_instructor(id):
-    instructor = Instructor.query.get_or_404(id)
-
     return jsonify({
-        "id": instructor.id,
-        "name": instructor.name,
-        "email": instructor.email,
-        "department": instructor.department
+        "instructors": [
+            instructor.to_dict()
+            for instructor in instructors
+        ]
     }), 200
 
 
-# CREATE instructor
+# ==========================================
+# GET ONE INSTRUCTOR
+# ==========================================
+@instructors_bp.route("/<int:id>", methods=["GET"])
+def get_instructor(id):
+
+    instructor = Instructor.query.get_or_404(id)
+
+    return jsonify({
+        "instructor": instructor.to_dict()
+    }), 200
+
+
+# ==========================================
+# CREATE INSTRUCTOR
+# ==========================================
 @instructors_bp.route("", methods=["POST"])
 def create_instructor():
+
     data = request.get_json()
 
     instructor = Instructor(
-        name=data["name"],
+        first_name=data["first_name"],
+        last_name=data["last_name"],
         email=data["email"],
-        department=data.get("department")
+        department=data["department"],
+        specialization=data.get("specialization")
     )
 
     db.session.add(instructor)
@@ -50,25 +55,28 @@ def create_instructor():
 
     return jsonify({
         "message": "Instructor created successfully",
-        "instructor": {
-            "id": instructor.id,
-            "name": instructor.name,
-            "email": instructor.email,
-            "department": instructor.department
-        }
+        "instructor": instructor.to_dict()
     }), 201
 
 
-# UPDATE instructor
+# ==========================================
+# UPDATE INSTRUCTOR
+# ==========================================
 @instructors_bp.route("/<int:id>", methods=["PUT"])
 def update_instructor(id):
+
     instructor = Instructor.query.get_or_404(id)
 
     data = request.get_json()
 
-    instructor.name = data.get(
-        "name",
-        instructor.name
+    instructor.first_name = data.get(
+        "first_name",
+        instructor.first_name
+    )
+
+    instructor.last_name = data.get(
+        "last_name",
+        instructor.last_name
     )
 
     instructor.email = data.get(
@@ -81,16 +89,25 @@ def update_instructor(id):
         instructor.department
     )
 
+    instructor.specialization = data.get(
+        "specialization",
+        instructor.specialization
+    )
+
     db.session.commit()
 
     return jsonify({
-        "message": "Instructor updated successfully"
+        "message": "Instructor updated successfully",
+        "instructor": instructor.to_dict()
     }), 200
 
 
-# DELETE instructor
+# ==========================================
+# DELETE INSTRUCTOR
+# ==========================================
 @instructors_bp.route("/<int:id>", methods=["DELETE"])
 def delete_instructor(id):
+
     instructor = Instructor.query.get_or_404(id)
 
     db.session.delete(instructor)
@@ -101,21 +118,22 @@ def delete_instructor(id):
     }), 200
 
 
-# SEARCH instructors
+# ==========================================
+# SEARCH INSTRUCTORS
+# ==========================================
 @instructors_bp.route("/search", methods=["GET"])
 def search_instructors():
+
     query = request.args.get("q", "")
 
     instructors = Instructor.query.filter(
-        Instructor.name.ilike(f"%{query}%")
+        Instructor.first_name.ilike(f"%{query}%") |
+        Instructor.last_name.ilike(f"%{query}%")
     ).all()
 
-    return jsonify([
-        {
-            "id": instructor.id,
-            "name": instructor.name,
-            "email": instructor.email,
-            "department": instructor.department
-        }
-        for instructor in instructors
-    ]), 200
+    return jsonify({
+        "instructors": [
+            instructor.to_dict()
+            for instructor in instructors
+        ]
+    }), 200

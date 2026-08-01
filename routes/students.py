@@ -5,44 +5,51 @@ from models.student import Student
 students_bp = Blueprint("students", __name__)
 
 
-def student_response(student):
-    return {
-        "id": student.id,
-        "name": f"{student.first_name} {student.last_name}",
-        "email": student.email
-    }
-
-
-# GET all students
+# ===========================
+# GET ALL STUDENTS
+# ===========================
 @students_bp.route("", methods=["GET"])
 def get_students():
+
     students = Student.query.all()
 
-    return jsonify([
-        student_response(student)
-        for student in students
-    ]), 200
+    return jsonify({
+        "students": [
+            student.to_dict()
+            for student in students
+        ]
+    }), 200
 
 
-# GET one student
+# ===========================
+# GET ONE STUDENT
+# ===========================
 @students_bp.route("/<int:id>", methods=["GET"])
 def get_student(id):
+
     student = Student.query.get_or_404(id)
 
-    return jsonify(
-        student_response(student)
-    ), 200
+    return jsonify({
+        "student": student.to_dict()
+    }), 200
 
 
-# CREATE student
+# ===========================
+# CREATE STUDENT
+# ===========================
 @students_bp.route("", methods=["POST"])
 def create_student():
+
     data = request.get_json()
 
     student = Student(
         first_name=data["first_name"],
         last_name=data["last_name"],
-        email=data["email"]
+        email=data["email"],
+        student_number=data["student_number"],
+        department=data["department"],
+        program=data["program"],
+        year_of_study=data["year_of_study"]
     )
 
     db.session.add(student)
@@ -50,13 +57,16 @@ def create_student():
 
     return jsonify({
         "message": "Student created successfully",
-        "student": student_response(student)
+        "student": student.to_dict()
     }), 201
 
 
-# UPDATE student
+# ===========================
+# UPDATE STUDENT
+# ===========================
 @students_bp.route("/<int:id>", methods=["PUT"])
 def update_student(id):
+
     student = Student.query.get_or_404(id)
 
     data = request.get_json()
@@ -76,16 +86,40 @@ def update_student(id):
         student.email
     )
 
+    student.student_number = data.get(
+        "student_number",
+        student.student_number
+    )
+
+    student.department = data.get(
+        "department",
+        student.department
+    )
+
+    student.program = data.get(
+        "program",
+        student.program
+    )
+
+    student.year_of_study = data.get(
+        "year_of_study",
+        student.year_of_study
+    )
+
     db.session.commit()
 
     return jsonify({
-        "message": "Student updated successfully"
+        "message": "Student updated successfully",
+        "student": student.to_dict()
     }), 200
 
 
-# DELETE student
+# ===========================
+# DELETE STUDENT
+# ===========================
 @students_bp.route("/<int:id>", methods=["DELETE"])
 def delete_student(id):
+
     student = Student.query.get_or_404(id)
 
     db.session.delete(student)
@@ -96,17 +130,23 @@ def delete_student(id):
     }), 200
 
 
-# SEARCH students
+# ===========================
+# SEARCH STUDENTS
+# ===========================
 @students_bp.route("/search", methods=["GET"])
 def search_students():
+
     query = request.args.get("q", "")
 
     students = Student.query.filter(
         Student.first_name.ilike(f"%{query}%") |
-        Student.last_name.ilike(f"%{query}%")
+        Student.last_name.ilike(f"%{query}%") |
+        Student.student_number.ilike(f"%{query}%")
     ).all()
 
-    return jsonify([
-        student_response(student)
-        for student in students
-    ]), 200
+    return jsonify({
+        "students": [
+            student.to_dict()
+            for student in students
+        ]
+    }), 200
